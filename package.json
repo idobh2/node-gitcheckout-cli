@@ -1,0 +1,23 @@
+{
+  "author": {
+    "name": "idobh2"
+  },
+  "bin": {
+    "gitcheckout": "./index.js"
+  },
+  "dependencies": {
+    "inquirer": "^4.0.0"
+  },
+  "description": "A CLI tool to select and checkout git branch",
+  "devDependencies": {},
+  "license": "MIT",
+  "main": "index.js",
+  "name": "gitcheckout-cli",
+  "optionalDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/idobh2/node-gitcheckout-cli.git"
+  },
+  "scripts": {},
+  "version": "1.0.0"
+}
