@@ -28,6 +28,12 @@ Then you'll be displayed with the available branches list. Simple pick one and h
 > master
 ```
 
+When prompted, you can type in to filter results
+```
+? Select branch to checkout: fish-t
+> hotfix/fish-tacos-for-lunch
+```
+
 Display help (yes, it has a '-h' arg)
 
 `gitcheckout -h`
