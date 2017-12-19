@@ -13,9 +13,14 @@ In your git repo directory:
 
 `gitcheckout`
 
-If you want to choose a branch from the remote as well (not locally tracked yet):
+If you want to choose a branch only from local branches:
 
-`gitcheckout -o`
+`gitcheckout -l`
+
+If you want to fetch first, before listing branches:
+
+`gitcheckout -f`
+> Note: Currently, the "-f" option doesn't handle credentials prompt, and will not fetch in that case, or any other case of "git fetch" failure.
 
 Then you'll be displayed with the available branches list. Simple pick one and hit Enter.
 ```

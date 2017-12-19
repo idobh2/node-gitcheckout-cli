@@ -6,15 +6,17 @@ const co = require("co");
 inquirer.registerPrompt("autocomplete", require('inquirer-autocomplete-prompt'));
 
 const showHelp = process.argv.includes("-h");
-const includeOrigin = process.argv.includes("-o") ? " -a" : ""
+const includeOrigin = process.argv.includes("-l") ? "" : " -a";
+const fetchFirst = process.argv.includes("-f");
 
 if (showHelp) {
 	console.log(`
-Command: gitcheckout [-o]
+Command: gitcheckout [-l] [-f]
 Select a branch using the keyboard arrows, hit Enter, and watch the magic as it happens.
 The current checked out branch is the default selection.
 
--o: include remote branches in branches list	
+-l: include only local branches in branches list
+-f: fetch before listing branches (quietly skips if failed)
 `)
 	process.exit(0);
 }
@@ -35,6 +37,11 @@ function execute(cmd, pipe = true) {
 }
 
 co(function* run() {
+	if (fetchFirst) {
+		yield execute(`git fetch`).catch(() => {
+			console.log("Couldn't fetch. Fetch manually before to display new remote branches");
+		});
+	}
 	const gitBranchOut = yield execute(`git branch --sort=-committerdate${includeOrigin}`, false);
 	let checkedOutBranch = 0;
 	let branches = gitBranchOut
@@ -69,7 +76,5 @@ co(function* run() {
 	yield execute(`git checkout ${branch}`);
 })
 	.catch((e) => {
-		console.error("Failed to execute:");
-		console.error(e);
 		process.exit(1);
 	});
