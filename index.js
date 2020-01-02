@@ -23,16 +23,12 @@ The current checked out branch is the default selection.
 
 function execute(cmd, pipe = true) {
 	return new Promise((resolve, reject) => {
-		const proc = exec(cmd, (err, stdin) => {
+		exec(cmd, (err, stdout) => {
 			if (err) {
 				return reject(err);
 			}
-			resolve(stdin);
+			resolve(stdout);
 		});
-		if (pipe) {
-			proc.stderr.pipe(process.stderr);
-			proc.stdout.pipe(process.stdout);
-		}
 	});
 }
 
@@ -74,6 +70,7 @@ co(function* run() {
 		}
 	]);
 	yield execute(`git checkout ${branch}`);
+
 })
 	.catch((e) => {
 		process.exit(1);
