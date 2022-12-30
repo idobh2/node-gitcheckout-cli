@@ -65,7 +65,7 @@ function execute(cmd, pipe = true) {
 			message: "Select branch to checkout:",
 			name: "branch",
 			source: (answersSoFar, input) => {
-				return Promise.resolve(null === input ? branches : branches.filter(n => n.includes(input)));
+				return Promise.resolve(!input ? branches : branches.filter(n => n.includes(input)));
 			},
 			pageSize: 10,
 			default: checkedOutBranch,
@@ -75,6 +75,6 @@ function execute(cmd, pipe = true) {
 
 })()
 	.catch((e) => {
-		console.log(e);
+		console.log(e.message || e);
 		process.exit(1);
 	});
