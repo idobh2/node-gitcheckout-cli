@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-const { exec } = require("child_process");
-const inquirer = require("inquirer");
-const co = require("co");
-inquirer.registerPrompt("autocomplete", require('inquirer-autocomplete-prompt'));
+import { exec } from "child_process";
+import inquirer from 'inquirer';
+import inquirerPrompt from 'inquirer-autocomplete-prompt';
+
+inquirer.registerPrompt("autocomplete", inquirerPrompt);
 
 const showHelp = process.argv.includes("-h");
 const includeOrigin = process.argv.includes("-l") ? "" : " -a";
@@ -32,13 +33,14 @@ function execute(cmd, pipe = true) {
 	});
 }
 
-co(function* run() {
+(async function run() {
 	if (fetchFirst) {
-		yield execute(`git fetch`).catch(() => {
+		await execute(`git fetch`).catch(() => {
 			console.log("Couldn't fetch. Fetch manually before to display new remote branches");
+			return;
 		});
 	}
-	const gitBranchOut = yield execute(`git branch --sort=-committerdate${includeOrigin}`, false);
+	const gitBranchOut = await execute(`git branch --sort=-committerdate${includeOrigin}`, false);
 	let checkedOutBranch = 0;
 	let branches = gitBranchOut
 		// removed output whitespace
@@ -57,21 +59,22 @@ co(function* run() {
 
 	// dedup (if local was or is checked out and origins are included)
 	branches = [...new Set(branches)];
-	const { branch } = yield inquirer.prompt([
+	const { branch } = await inquirer.prompt([
 		{
 			type: "autocomplete",
 			message: "Select branch to checkout:",
 			name: "branch",
 			source: (answersSoFar, input) => {
-				return Promise.resolve(null === input ? branches : branches.filter(n => n.includes(input)));
+				return Promise.resolve(!input ? branches : branches.filter(n => n.includes(input)));
 			},
 			pageSize: 10,
 			default: checkedOutBranch,
 		}
 	]);
-	yield execute(`git checkout ${branch}`);
+	await execute(`git checkout ${branch}`);
 
-})
+})()
 	.catch((e) => {
+		console.log(e.message || e);
 		process.exit(1);
 	});
