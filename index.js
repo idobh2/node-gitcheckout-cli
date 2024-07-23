@@ -33,7 +33,14 @@ function execute(cmd, pipe = true) {
 	});
 }
 
+const greenOpenTag = "\x1b[32m";
+const blueOpenTag = "\x1b[36m";
+const redOpenTag = "\x1b[31m";
+const closingTag = "\x1b[0m";
+
+
 (async function run() {
+
 	if (fetchFirst) {
 		await execute(`git fetch`).catch(() => {
 			console.log("Couldn't fetch. Fetch manually before to display new remote branches");
@@ -71,10 +78,13 @@ function execute(cmd, pipe = true) {
 			default: checkedOutBranch,
 		}
 	]);
-	await execute(`git checkout ${branch}`);
+	await execute(`git checkout ${branch}`).then(() => {
+		console.log(`${greenOpenTag}Success:${closingTag} You have successfully checkout ${blueOpenTag}${branch}${closingTag} branch!`);
+	})
 
 })()
 	.catch((e) => {
+		console.log(`${redOpenTag}Failure:${closingTag} Failed to checkout branch!`);
 		console.log(e.message || e);
 		process.exit(1);
 	});
