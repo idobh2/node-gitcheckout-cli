@@ -1,4 +1,5 @@
 # gitcheckout
+
 This simple CLI tool will prompt you to conveniently choose a git branch, using keyboard arrows navigation, and check it out like a boss.
 
 # Why??
@@ -21,6 +22,25 @@ If you want to fetch first, before listing branches:
 
 `gitcheckout -f`
 > Note: Currently, the "-f" option doesn't handle credentials prompt, and will not fetch in that case, or any other case of "git fetch" failure.
+
+`gitcheckout -d`
+If you want to delete local branches interactively:
+
+This will display a list of local branches. You can select one or more branches to delete using the spacebar, then press Enter to confirm deletion.
+
+Example prompt:
+
+```
+? Select branches to delete: (Press <space> to select, <a> to toggle all, <i> to invert selection)
+ ◯ develop
+ ◯ hotfix/some-very-long-name-no-way-ill-remember
+ ◯ feature/my-awesome-feature
+ ◯ feature/gitcheckout-is-so-cool
+ ◯ hotfix/fish-tacos-for-lunch
+ ◯ master
+```
+
+> Note: The -d flag only deletes local branches. Use with caution—deleted branches cannot be recovered unless pushed to remote.
 
 Then you'll be displayed with the available branches list. Simple pick one and hit Enter.
 ```

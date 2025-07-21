@@ -7,8 +7,9 @@ import inquirerPrompt from 'inquirer-autocomplete-prompt';
 inquirer.registerPrompt("autocomplete", inquirerPrompt);
 
 const showHelp = process.argv.includes("-h");
-const includeOrigin = process.argv.includes("-l") ? "" : " -a";
 const fetchFirst = process.argv.includes("-f");
+const deleteBranches = process.argv.includes("-d");
+const includeOrigin = process.argv.includes("-l") || deleteBranches ? "" : " -a";
 
 if (showHelp) {
 	console.log(`
@@ -18,6 +19,7 @@ The current checked out branch is the default selection.
 
 -l: include only local branches in branches list
 -f: fetch before listing branches (quietly skips if failed)
+-d: select local branches to delete
 `)
 	process.exit(0);
 }
@@ -31,6 +33,19 @@ function execute(cmd, pipe = true) {
 			resolve(stdout);
 		});
 	});
+}
+
+async function execDeleteBranches(branches) {
+	const { branchesToDelete } = await inquirer.prompt([
+		{
+			type: "checkbox",
+			message: "Select branches to delete:",
+			name: "branchesToDelete",
+			choices: branches,
+			pageSize: 10,
+		}
+	]);
+	await execute(`git branch -D ${branchesToDelete.join(" ")}`);
 }
 
 (async function run() {
@@ -59,6 +74,9 @@ function execute(cmd, pipe = true) {
 
 	// dedup (if local was or is checked out and origins are included)
 	branches = [...new Set(branches)];
+	if (deleteBranches) {
+		return execDeleteBranches(branches);
+	}
 	const { branch } = await inquirer.prompt([
 		{
 			type: "autocomplete",
