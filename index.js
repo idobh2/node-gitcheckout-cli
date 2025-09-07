@@ -13,7 +13,7 @@ const includeOrigin = process.argv.includes("-l") || deleteBranches ? "" : " -a"
 
 if (showHelp) {
 	console.log(`
-Command: gitcheckout [-l] [-f]
+Command: gitcheckout [-l] [-f] [-d]
 Select a branch using the keyboard arrows, hit Enter, and watch the magic as it happens.
 The current checked out branch is the default selection.
 
