@@ -40,7 +40,7 @@ Example prompt:
  ◯ master
 ```
 
-> Note: The -d flag only deletes local branches. Use with caution—deleted branches cannot be recovered unless pushed to remote.
+> Note: The -d flag deletes local branches and removes worktrees. Use with caution—deleted branches cannot be recovered unless pushed to remote. (Worktrees that have uncommitted changes are skipped, with a message, rather than force-removed.)
 
 Then you'll be displayed with the available branches list. Simple pick one and hit Enter.
 ```
@@ -58,6 +58,21 @@ When prompted, you can type in to filter results
 ? Select branch to checkout: fish-t
 > hotfix/fish-tacos-for-lunch
 ```
+
+# Worktrees
+
+Branches that are checked out in another [git worktree](https://git-scm.com/docs/git-worktree) show up in the list automatically, marked with a `+` (the same marker `git branch` uses):
+
+```
+? Select branch/worktree:
+  feature/my-awesome-feature
++ master
+> add-d-to-help-text
+```
+
+Picking a worktree opens a **new shell in that directory** — you land there ready to work, and type `exit` to return to where you started. (A CLI can't change its parent shell's directory, so it spawns a shell instead.) This works on macOS, Linux and Windows — it launches your `$SHELL`, or `cmd`/PowerShell on Windows.
+
+With `-d`, selecting a worktree runs `git worktree remove` on it (the underlying branch is kept), while a regular branch still gets `git branch -D`.
 
 Display help (yes, it has a '-h' arg)
 
