@@ -1,16 +1,18 @@
 #!/usr/bin/env node
 
-import { exec, spawn } from "child_process";
+import { execFile, spawn } from "child_process";
+import { realpathSync } from "fs";
 import { homedir } from "os";
 import inquirer from 'inquirer';
 import inquirerPrompt from 'inquirer-autocomplete-prompt';
+import { parseWorktrees, parseBranchList } from "./parse.js";
 
 inquirer.registerPrompt("autocomplete", inquirerPrompt);
 
 const showHelp = process.argv.includes("-h");
 const fetchFirst = process.argv.includes("-f");
 const deleteBranches = process.argv.includes("-d");
-const includeOrigin = process.argv.includes("-l") || deleteBranches ? "" : " -a";
+const localOnly = process.argv.includes("-l") || deleteBranches;
 
 if (showHelp) {
 	console.log(`
@@ -27,9 +29,11 @@ one opens a new shell in that directory; type 'exit' to return to where you came
 	process.exit(0);
 }
 
-function execute(cmd, pipe = true) {
+// run git with an argv array (no shell), so branch names and worktree paths
+// are never interpolated into a shell string
+function git(args) {
 	return new Promise((resolve, reject) => {
-		exec(cmd, (err, stdout) => {
+		execFile("git", args, (err, stdout) => {
 			if (err) {
 				return reject(err);
 			}
@@ -42,6 +46,16 @@ const home = homedir();
 // prettify long paths by collapsing the home directory to '~'
 function tildify(p) {
 	return home && p.startsWith(home) ? "~" + p.slice(home.length) : p;
+}
+
+// compare paths through realpath so symlinked mounts (e.g. macOS /var vs
+// /private/var) still match; fall back to a raw compare if resolution fails
+function samePath(a, b) {
+	try {
+		return realpathSync(a) === realpathSync(b);
+	} catch {
+		return a === b;
+	}
 }
 
 // how an entry is shown in the list (worktrees keep git's '+' marker)
@@ -68,32 +82,10 @@ function openShell(cwd) {
 	});
 }
 
-// parse `git worktree list --porcelain` into a branch->path map (+ detached ones),
-// excluding the current worktree and any bare repo entry.
 async function getWorktrees() {
-	const out = await execute(`git worktree list --porcelain`).catch(() => "");
-	const currentTop = (await execute(`git rev-parse --show-toplevel`).catch(() => "")).trim();
-
-	const byBranch = new Map();
-	const detached = [];
-	const register = (b) => {
-		if (!b || !b.path || b.bare || b.path === currentTop) return;
-		if (b.branch) byBranch.set(b.branch, b.path);
-		else detached.push(b);
-	};
-
-	let block = {};
-	for (const line of out.replace(/\r/g, "").split("\n")) {
-		if (line.startsWith("worktree ")) block = { path: line.slice("worktree ".length).trim() };
-		else if (line.startsWith("HEAD ")) block.head = line.slice("HEAD ".length).trim();
-		else if (line.startsWith("branch ")) block.branch = line.slice("branch ".length).replace(/^refs\/heads\//, "").trim();
-		else if (line === "detached") block.detached = true;
-		else if (line === "bare") block.bare = true;
-		else if (line === "") { register(block); block = {}; }
-	}
-	register(block);
-
-	return { byBranch, detached };
+	const out = await git(["worktree", "list", "--porcelain"]).catch(() => "");
+	const currentTop = (await git(["rev-parse", "--show-toplevel"]).catch(() => "")).trim();
+	return parseWorktrees(out, { currentTop, samePath });
 }
 
 async function execDelete(choices) {
@@ -111,54 +103,39 @@ async function execDelete(choices) {
 
 	// remove worktrees one by one so a single failure (e.g. dirty/locked) doesn't abort the rest
 	for (const wt of worktrees) {
-		await execute(`git worktree remove "${wt.path}"`).catch((err) => {
-			console.log(`Could not remove worktree ${tildify(wt.path)}: ${(err.message || err).trim()}`);
+		await git(["worktree", "remove", wt.path]).catch((err) => {
+			// keep only git's own message, not the exec 'Command failed: ...' echo of the argv
+			const reason = String(err.message || err).split("\n")
+				.filter((l) => l.trim() && !l.startsWith("Command failed:"))
+				.join(" ");
+			console.log(`Could not remove worktree ${tildify(wt.path)}: ${reason}`);
 		});
 	}
 	if (branches.length) {
-		await execute(`git branch -D ${branches.join(" ")}`);
+		await git(["branch", "-D", ...branches]);
 	}
 }
 
 (async function run() {
 	if (fetchFirst) {
-		await execute(`git fetch`).catch(() => {
+		await git(["fetch"]).catch(() => {
 			console.log("Couldn't fetch. Fetch manually before to display new remote branches");
 			return;
 		});
 	}
 
 	const { byBranch, detached } = await getWorktrees();
-	const gitBranchOut = await execute(`git branch --sort=-committerdate${includeOrigin}`, false);
+	const branchArgs = ["branch", "--sort=-committerdate"];
+	if (!localOnly) branchArgs.push("-a");
+	const gitBranchOut = await git(branchArgs);
 
-	// build a deduped, ordered map of branch-name -> entry, where a branch that
-	// lives in another worktree becomes a 'worktree' entry (with its path).
-	const seen = new Map();
-	let currentName = null;
-	for (const rawLine of gitBranchOut.replace(/\r/g, "").trim().split("\n")) {
-		if (!rawLine) continue;
-		const isCurrent = rawLine.startsWith("*"); // current branch in this worktree
-		const isOtherWorktree = rawLine.startsWith("+"); // branch checked out in another worktree
-		// drop the 2-char marker column ('* ', '+ ', '  ') and the remotes/origin/ prefix
-		const clean = rawLine.slice(2).trim().replace(/^remotes\/origin\//, "");
-		if (!clean || clean.includes("->")) continue; // skip the 'HEAD -> origin/master' pointer
-		if (isCurrent) currentName = clean;
-
-		const wtPath = byBranch.get(clean);
-		const asWorktree = !isCurrent && (isOtherWorktree || wtPath) && wtPath;
-		const existing = seen.get(clean);
-		if (!existing) {
-			seen.set(clean, asWorktree
-				? { type: "worktree", branch: clean, path: wtPath }
-				: { type: "branch", branch: clean });
-		} else if (existing.type === "branch" && asWorktree) {
-			// a later line revealed this branch is actually in a worktree — upgrade it
-			seen.set(clean, { type: "worktree", branch: clean, path: wtPath });
-		}
+	const { entries: branchEntries, currentName, unresolved } = parseBranchList(gitBranchOut, byBranch);
+	if (unresolved.length) {
+		console.log(`Note: git marks ${unresolved.join(", ")} as checked out in another worktree, but the worktree path couldn't be resolved — listing as regular branch(es).`);
 	}
 
 	const entries = [
-		...seen.values(),
+		...branchEntries,
 		...detached.map((wt) => ({ type: "worktree", branch: null, path: wt.path, head: wt.head })),
 	];
 	const choices = entries.map((e) => ({ name: displayName(e), value: e }));
@@ -174,6 +151,7 @@ async function execDelete(choices) {
 			message: "Select branch/worktree:",
 			name: "chosen",
 			source: (answersSoFar, input) => {
+				// filters on the display name on purpose, so typing '+' narrows to worktrees
 				return Promise.resolve(!input ? choices : choices.filter((c) => c.name.includes(input)));
 			},
 			pageSize: 10,
@@ -184,7 +162,7 @@ async function execDelete(choices) {
 	if (chosen.type === "worktree") {
 		openShell(chosen.path);
 	} else {
-		await execute(`git checkout ${chosen.branch}`);
+		await git(["checkout", chosen.branch]);
 	}
 
 })()

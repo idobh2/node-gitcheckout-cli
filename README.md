@@ -70,7 +70,7 @@ Branches that are checked out in another [git worktree](https://git-scm.com/docs
 > add-d-to-help-text
 ```
 
-Picking a worktree opens a **new shell in that directory** — you land there ready to work, and type `exit` to return to where you started. (A CLI can't change its parent shell's directory, so it spawns a shell instead.) This works on macOS, Linux and Windows — it launches your `$SHELL`, or `cmd`/PowerShell on Windows.
+Picking a worktree opens a **new shell in that directory** — you land there ready to work, and type `exit` to return to where you started. (A CLI can't change its parent shell's directory, so it spawns a shell instead.) This works on macOS, Linux and Windows — it launches your `$SHELL` (or `cmd` — whatever `ComSpec` points to — on Windows).
 
 With `-d`, selecting a worktree runs `git worktree remove` on it (the underlying branch is kept), while a regular branch still gets `git branch -D`.
 

@@ -20,6 +20,8 @@
     "type": "git",
     "url": "git+https://github.com/idobh2/node-gitcheckout-cli.git"
   },
-  "scripts": {},
-  "version": "1.0.9"
+  "scripts": {
+    "test": "node --test"
+  },
+  "version": "1.1.0"
 }
